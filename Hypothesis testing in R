@@ -1,0 +1,261 @@
+jdata<- read.csv("clipboard", sep ="\t", header =TRUE)
+str(jdata)
+
+###############################################################################################
+#Q1.	Anand, the cofounder of JAT, claims that disease 6 (leaf curl) information was accessed
+#at least 60 times every month on average since October 2017 due to this disease outbreak. 
+#Test this claim at a significance level of 0.05 using an appropriate hypothesis test
+
+#H0 : mu <= 60
+# Ha : mu > 60
+jdata1 <- subset(jdata,jdata$`Month-Year`>= "2017-10-01")
+t.test(jdata1$D6, mu=60, alternative = "greater", conf.level = 0.95)
+
+#conclusion:- 
+#Since the pvalue(0.013)after the one sample t-test is less than alpha(0.05), we reject the null hypothesis
+#and the alternative hypothesis is statistically significant.hence the claim that the disease 6 information was 
+#accessed at least 60 times every month on an average since october 2017 is true.
+
+################################################################################################################
+#Q2-	Among the app users for disease information,
+#at least 15% of them access disease information related to disease 6.
+#Use an appropriate hypothesis test to check this claim at a = 0.05.
+
+#H0: p <= 0.15
+#Ha: p > 0.15 where, p = proportion of users accessing information on Disease 6.
+
+d6use_prop <- sum(jdata$D6)/sum(jdata$Usage)
+se <- (sqrt((0.15)*(1- 0.15))/123)
+z_stat <- (d6use_prop - 0.15)/ se
+pvalue <- 1-pnorm(z_stat)
+pvalue
+
+#conclusion:- 
+#Since the pvalue for the single sample proportion test is 0.99 , which is greater than alpha(0.05), we can not
+#reject the Null, Ho. The test is statistically insignificant. Hence the claim that,among the app users for disease 
+#information,at least 15% of them access disease information related to disease  6 is not true.
+
+################################################################################################################
+#Q3.JAT believes that over the years, the average number of app users have increased significantly.
+#Is there statistical evidence to support that the average number of users in year 2017-2018 is more than 
+#average number of users in year 2015-2016 at a=0.05?Support your answer with all necessary 
+
+#u1 = average no of users in 2017-18
+#u2 = average no of users in 2015-16
+#Ho : u1 <= u2
+#Ha: u1 > u2
+
+
+data <- data.frame(date = jdata$`Month-Year`, users = jdata$`No of users`)
+data$year<- ifelse(data$date < "2017-01-01", "yr1516","yr1718")
+str(data)
+data$year <- factor(data$year, levels =c("yr1516","yr1718"),labels = c(1,2))
+str(data)
+test <- t.test(users ~ year,
+               alternative = "greater", 
+               data = data,
+               var.equal = TRUE)
+test
+
+#conclusion:- the p value(1) in the two sample t-test is greater than alpha (0.05).Hence we go with the 
+#null and the test is statistically insignificant. The claim that the average number of users in year 2017-2018
+#is more than average number of users in year 2015-2016 is not true.
+
+#################################################################################################################
+#Q4.Farmers use apps to access information throughout the month. Using the data,check whether app usage is same
+#or different across the four weeks of a month.Anand claims that app usage picked up after January 2016; 
+#so, test this hypothesis using data from January-2016 - May 2018.
+
+#H0: app usage is same across the four weeks of a month
+#Ha: app usage is different across the four weeks of a month
+library(dplyr)
+
+#part1)
+
+d <- data.frame(usage = jdata$Usage, week = jdata$Week)
+str(d)
+d$week <- factor(d$week, levels = c("Week1","Week2", "Week3","Week4"), labels = c(1,2,3,4))
+an <- aov(usage~week,data=d)
+summary(an)
+model.tables(an, type = "means")
+
+#since p value(0.0894)is greater than alpha (0.05), we cannot reject the null.the test is statistcally 
+#insignificant.the claim that usage is different across four weeks is not true.
+
+
+#part2
+#mu1 = Average usage till 31 Dec 2015
+#mu2 = Average usage from 01 Jan 2016
+#H0: u1 >= u2
+#Ha: u1 < u2
+d <- data.frame(date = jdata$`Month-Year`, usage = jdata$Usage)
+d$year<- ifelse(d$date < "2016-01-01", "yr15","yr16")
+d$year <- factor(d$year, levels =c("yr15","yr16"),labels = c(1,2))
+t <- t.test(d$usage ~ d$year,data = d, 
+            alternative = "less",
+            var.equal = TRUE)
+t
+
+#conclusion:= since p value (0.00025) is less than alpha(0.05), we reject the null. The test is statistically 
+#significant and the alternate hypothesis is true i.e. average usage increased from jamuary 2016. 
+
+
+################################################################################################################
+##Q.5 A new version of the app was released in August 2016. Anand wants to understand which month in the given 
+#time frame after the launch of the new version, the mean usage pattern would start to show a statistically
+#significant shift.
+#H0: usage after peak <= usage before peak
+#Ha: usage after peak > usage before peak 
+
+data4 <- data.frame(monthyr= jdata$`Month-Year`, week= jdata$Week, usage = jdata$Usage)
+plot(data4$usage~data4$monthyr, type ="l", col = "red")
+
+data4$peak <- ifelse(data4$monthyr >= "2016-10-01","after peak", "b4 peak")
+data4 <- filter(jdata,jdata$`Month-Year`>="2016-09-01")
+
+
+t <- t.test(usage~peak, data = data4, alternativee = "Greater")
+t
+
+#conclusion :-
+#since the pvalue(0.000000)is less than alpha(0.05),we reject the null hyothesis.
+#The test is statistically significant. The claim that the mean usage pattern shows a statistical significance 
+#post launch of a new version is true.
+
+#################################################################################################################
+
+#Q6.If a disease is likely to spread in particular weather condition (data given in the disease index sheet),
+#then the access of that disease should be more in the months having suitable weather conditions. Help the
+#analyst in coming up with a statistical test to support the claim for two districts for which the sample 
+#weather and disease access data is provided in the data sheet.Identify the diseases for which you can support 
+#this claim. Test this claim both for temperature and relative humidity at 95% confidence. 
+ 
+bwdr <- read.csv("clipboard", sep= "\t", header = TRUE)
+dwdr <- read.csv("clipboard", sep= "\t", header = TRUE)
+
+#Ho: access less in suitable weather
+#Ha: access more in suitable weather
+
+##FOR DISEASE D1 IN BELGAVI
+
+dbw1 <- data.frame(d1 =bwdr$D1, temp = bwdr$Temperature, humid = bwdr$Relative.Humidity)
+dbw1$ideal <- ifelse(dbw1$humid > 80 & dbw1$temp >= 20 & dbw1$temp <= 24, "Yes","No")
+dbw1$ideal<- factor(dbw1$ideal,levels = c("Yes", "No"), labels = c("Yes", "No"))
+tb1 <- t.test(d1~ideal, data = dbw1, alternative= "greater")
+tb1
+#since pvalue(0.0231)is less than alpha(0.05)we reject null.test is significant.i.e access for D1 is
+#more in belgavi when weather is favourable.
+
+#FOR DISEASE D1 IN DHARWAD
+
+ddw1 <- data.frame(d1 =dwdr$D1, temp = dwdr$Temperature, humid = dwdr$Relative.Humidity)
+ddw1$ideal <- ifelse(ddw1$humid > 80 & ddw1$temp >= 20 & ddw1$temp <= 24, "Yes","No")
+
+
+ddw1$ideal<- factor(ddw1$ideal,levels = c("Yes", "No"), labels = c("Yes", "No"))
+td1 <- t.test(d1~ideal, data = ddw1, alternative= "greater")
+td1
+#since pvalue(0.007)is less than alpha(0.05)we reject null.test is significant.i.e access for D1 is
+#more in dharwad when weather is favourable.
+
+##FOR DISEASE D2 IN BELGAVI
+
+#Ho: access less in suitable weather
+#Ha: access more in suitable weather
+dbw2 <- data.frame(d2 =bwdr$D2, temp = bwdr$Temperature, humid = bwdr$Relative.Humidity)
+dbw2$ideal <- ifelse(dbw2$humid > 83 & dbw2$temp >= 21.5 & dbw2$temp <= 24.5, "Yes","No")
+dbw2$ideal<- factor(dbw2$ideal,levels = c("Yes", "No"), labels = c("Yes", "No"))
+tb2 <- t.test(d2~ideal, data = dbw2, alternative= "greater")
+tb2
+#since pvalue(0.002)is less than alpha(0.05)we reject null.test is significant.i.e access for D2 is
+#more in belgavi when weather is favourable.
+
+#FOR D2 IN DHARWAD
+ddw2 <- data.frame(d2 =dwdr$D2, temp = dwdr$Temperature, humid = dwdr$Relative.Humidity)
+ddw2$ideal <- ifelse(ddw1$humid > 83 & ddw1$temp >= 21.5 & ddw1$temp <= 24.5, "Yes","No")
+ddw2$ideal<- factor(ddw2$ideal,levels = c("Yes", "No"), labels = c("Yes", "No"))
+td2 <- t.test(d2~ideal, data = ddw2, alternative= "greater")
+td2
+#since pvalue(0.04)is less than alpha(0.05)we reject null.test is significant.i.e access for D2 is
+#more in dharwad when weather is favourable.
+
+#FOR D3 IN BELGAVI
+#Ho: access less in suitable weather
+#Ha: access more in suitable weather
+dbw3 <- data.frame(d3 =bwdr$D3, temp = bwdr$Temperature, humid = bwdr$Relative.Humidity)
+dbw3$ideal <- ifelse(dbw2$temp >= 22& dbw2$temp <= 24, "Yes","No")
+dbw3$ideal<- factor(dbw3$ideal,levels = c("Yes", "No"), labels = c("Yes", "No"))
+tb3 <- t.test(d3~ideal, data = dbw3, alternative= "greater")
+tb3
+#since pvalue(0.01)is less than alpha(0.05)we reject null.test is significant.i.e access for D3 is
+#more in belgavi when weather is favourable.
+
+#FOR D3 IN DHARWAD
+ddw3 <- data.frame(d3 =dwdr$D3, temp = dwdr$Temperature, humid = dwdr$Relative.Humidity)
+ddw3$ideal <- ifelse(ddw3$temp >= 22 & ddw1$temp <= 24, "Yes","No")
+ddw3$ideal<- factor(ddw3$ideal,levels = c("Yes", "No"), labels = c("Yes", "No"))
+td3 <- t.test(d3~ideal, data = ddw3, alternative= "greater")
+td3
+#since pvalue(0.03)is less than alpha(0.05)we reject null.test is significant.i.e access for D3 is
+#more in dharwad when weather is favourable.
+
+#FOR D4 IN BELGAVI
+#Ho: access less in suitable weather
+#Ha: access more in suitable weather
+dbw4 <- data.frame(d4 =bwdr$D4, temp = bwdr$Temperature, humid = bwdr$Relative.Humidity)
+dbw4$ideal <- ifelse(dbw4$humid > 85 & dbw4$temp >= 22& dbw4$temp <= 26, "Yes","No")
+dbw4$ideal<- factor(dbw4$ideal,levels = c("Yes", "No"), labels = c("Yes", "No"))
+tb4 <- t.test(d4~ideal, data = dbw4, alternative= "greater")
+tb4
+#since pvalue(0.1)is greater than alpha(0.05)we go with null.test is insignificant.i.e access for D4 is
+#less in belgavi when weather is favourable.
+
+#FOR D4 IN DHARWAD
+ddw4 <- data.frame(d4 =dwdr$D4, temp = dwdr$Temperature, humid = dwdr$Relative.Humidity)
+ddw4$ideal <- ifelse(ddw4$humid > 85 & ddw4$temp >= 22 & ddw1$temp <= 24, "Yes","No")
+ddw4$ideal<- factor(ddw4$ideal,levels = c("Yes", "No"), labels = c("Yes", "No"))
+td4 <- t.test(d4~ideal, data = ddw4, alternative= "greater")
+td4
+#since pvalue(0.20)is greater than alpha(0.05)we go with null.test is insignificant.i.e access for D4 is
+#less in dharwad when weather is favourable.
+
+#FOR D5 IN BELGAVI
+#Ho: access less in suitable weather
+#Ha: access more in suitable weather
+dbw5 <- data.frame(d5 =bwdr$D5, temp = bwdr$Temperature, humid = bwdr$Relative.Humidity)
+dbw5$ideal <- ifelse(dbw5$humid >=77 & dbw5$humid <= 85 & dbw5$temp >= 22& dbw5$temp <= 24.5, "Yes","No")
+dbw5$ideal<- factor(dbw5$ideal,levels = c("Yes", "No"), labels = c("Yes", "No"))
+tb5 <- t.test(d5~ideal, data = dbw5, alternative= "greater")
+tb5
+#since pvalue(0.03)is less than alpha(0.05)we reject null.test is significant.i.e access for D5 is
+#more in belgavi when weather is favourable.
+
+#FOR D5 IN DHARWAD
+ddw5 <- data.frame(d5 =dwdr$D5, temp = dwdr$Temperature, humid = dwdr$Relative.Humidity)
+ddw5$ideal <- ifelse(ddw5$humid >=77 & ddw5$humid <= 85 & ddw5$temp >= 22 & ddw5$temp <= 24, "Yes","No")
+ddw5$ideal<- factor(ddw5$ideal,levels = c("Yes", "No"), labels = c("Yes", "No"))
+td5 <- t.test(d5~ideal, data = ddw5, alternative= "greater")
+td5
+#since pvalue(0.45)is greater than alpha(0.05)we go with null.test is insignificant.i.e access for D5 is
+#less in dharwad when weather is favourable.
+
+#FOR D7 IN BELGAVI
+#Ho: access less in suitable weather
+#Ha: access more in suitable weather
+dbw7 <- data.frame(d7 =bwdr$D7, temp = bwdr$Temperature, humid = bwdr$Relative.Humidity)
+dbw7$ideal <- ifelse(dbw7$humid >80 & dbw7$temp > 25, "Yes","No")
+dbw7$ideal<- factor(dbw7$ideal,levels = c("Yes", "No"), labels = c("Yes", "No"))
+tb7 <- t.test(d7~ideal, data = dbw7, alternative= "greater")
+tb7
+
+#since pvalue(0.004)is less than alpha(0.05)we reject null.test is significant.i.e access for D7 is
+#more in belgavi when weather is favourable.
+
+#FOR D7 INDHARWAD
+ddw7 <- data.frame(d7 =dwdr$D7, temp = dwdr$Temperature, humid = dwdr$Relative.Humidity)
+ddw7$ideal <- ifelse(ddw5$humid >80 & ddw7$temp > 25, "Yes","No")
+ddw7$ideal<- factor(ddw7$ideal,levels = c("Yes", "No"), labels = c("Yes", "No"))
+td7 <- t.test(d7~ideal, data = ddw7, alternative= "greater")
+td7
+#since pvalue(0.24)is greater than alpha(0.05)we go with null.test is insignificant.i.e access for D7 is
+#less in dharwad when weather is favourable.
